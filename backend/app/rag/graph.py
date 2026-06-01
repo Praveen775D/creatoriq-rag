@@ -3,6 +3,10 @@ from langgraph.graph import (
     END
 )
 
+from langgraph.checkpoint.memory import (
+    MemorySaver
+)
+
 from app.rag.state import GraphState
 from app.rag.nodes import (
     retrieve,
@@ -10,10 +14,9 @@ from app.rag.nodes import (
 )
 
 
-builder = StateGraph(
-    GraphState
-)
+builder = StateGraph(GraphState)
 
+# Nodes
 builder.add_node(
     "retrieve",
     retrieve
@@ -24,6 +27,7 @@ builder.add_node(
     generate
 )
 
+# Flow
 builder.set_entry_point(
     "retrieve"
 )
@@ -38,4 +42,9 @@ builder.add_edge(
     END
 )
 
-graph = builder.compile()
+# Memory for multi-turn conversations
+memory = MemorySaver()
+
+graph = builder.compile(
+    checkpointer=memory
+)
