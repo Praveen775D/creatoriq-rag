@@ -1,10 +1,10 @@
-# backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.health import router as health_router
 from app.api.ingest import router as ingest_router
 from app.api.chat import router as chat_router
+
 
 app = FastAPI(
     title="CreatorIQ RAG API",
@@ -41,6 +41,6 @@ app.include_router(
 @app.get("/")
 async def root():
     return {
-        "service": "CreatorIQ RAG",
-        "status": "running"
+        "status": "running",
+        "service": "CreatorIQ RAG"
     }
