@@ -17,13 +17,11 @@ app.include_router(
 app.include_router(
     ingest_router,
     prefix="/ingest",
-    tags=["Ingestion"]
+    tags=["Ingest"]
 )
-
 
 @app.get("/")
 async def root():
     return {
-        "service": "CreatorIQ RAG",
         "status": "running"
     }
