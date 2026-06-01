@@ -9,10 +9,10 @@ class ChromaService:
     def __init__(self):
 
         self.vectorstore = Chroma(
-            collection_name=settings.CHROMA_COLLECTION,
+            collection_name=settings.chroma_collection,
             embedding_function=OpenAIEmbeddings(
                 api_key=settings.OPENAI_API_KEY,
-                model=settings.EMBEDDING_MODEL
+                model=settings.embedding_model
             ),
             persist_directory="./chroma_db"
         )

@@ -1,11 +1,10 @@
-from typing import Generator
-
+# backend/app/api/chat.py
 from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from typing import AsyncGenerator
 
 from app.rag.graph import graph
-
 
 router = APIRouter()
 
@@ -15,66 +14,53 @@ class ChatRequest(BaseModel):
     thread_id: str = "default"
 
 
-def generate_response(
-    question: str,
-    thread_id: str
-) -> Generator[str, None, None]:
-    """
-    Execute LangGraph workflow
-    and stream response.
-    """
-
-    config = {
-        "configurable": {
-            "thread_id": thread_id
-        }
-    }
-
-    result = graph.invoke(
-        {
-            "question": question
-        },
-        config=config
-    )
-
-    answer = result["answer"]
-
-    yield answer
-
-
+# ---------------- NORMAL CHAT ----------------
 @router.post("/")
-async def chat(
-    payload: ChatRequest
-):
-
-    config = {
-        "configurable": {
-            "thread_id": payload.thread_id
-        }
-    }
+async def chat(payload: ChatRequest):
 
     result = graph.invoke(
         {
             "question": payload.question
         },
-        config=config
+        config={
+            "configurable": {
+                "thread_id": payload.thread_id
+            }
+        }
     )
 
     return {
-        "answer": result["answer"],
-        "sources": result["sources"]
+        "answer": result.get("answer", ""),
+        "sources": result.get("sources", []),
+        "video_references": result.get("video_refs", [])
     }
 
 
+# ---------------- STREAMING CHAT ----------------
+async def stream_generator(question: str, thread_id: str) -> AsyncGenerator[str, None]:
+
+    result = graph.invoke(
+        {
+            "question": question
+        },
+        config={
+            "configurable": {
+                "thread_id": thread_id
+            }
+        }
+    )
+
+    answer = result.get("answer", "")
+
+    # streaming word-by-word (simple but interview-safe)
+    for word in answer.split():
+        yield word + " "
+
+
 @router.post("/stream")
-async def stream_chat(
-    payload: ChatRequest
-):
+async def stream_chat(payload: ChatRequest):
 
     return StreamingResponse(
-        generate_response(
-            payload.question,
-            payload.thread_id
-        ),
+        stream_generator(payload.question, payload.thread_id),
         media_type="text/plain"
     )

@@ -9,7 +9,7 @@ class EmbeddingService:
 
         self.embeddings = OpenAIEmbeddings(
             api_key=settings.OPENAI_API_KEY,
-            model=settings.EMBEDDING_MODEL
+            model=settings.embedding_model
         )
 
     def embed_documents(

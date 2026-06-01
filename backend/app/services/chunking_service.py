@@ -1,11 +1,8 @@
-
 # backend/app/services/chunking_service.py
-from typing import List
 
-from langchain.schema import Document
-from langchain.text_splitter import (
-    RecursiveCharacterTextSplitter
-)
+from typing import List
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 class ChunkingService:
@@ -20,18 +17,16 @@ class ChunkingService:
         chunk_overlap: int = 200
     ):
 
-        self.splitter = (
-            RecursiveCharacterTextSplitter(
-                chunk_size=chunk_size,
-                chunk_overlap=chunk_overlap,
-                separators=[
-                    "\n\n",
-                    "\n",
-                    ". ",
-                    " ",
-                    ""
-                ]
-            )
+        self.splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=[
+                "\n\n",
+                "\n",
+                ". ",
+                " ",
+                ""
+            ]
         )
 
     def chunk_transcript(
@@ -43,11 +38,9 @@ class ChunkingService:
         Split transcript into chunks.
         """
 
-        documents = (
-            self.splitter.create_documents(
-                texts=[transcript],
-                metadatas=[metadata]
-            )
+        documents = self.splitter.create_documents(
+            texts=[transcript],
+            metadatas=[metadata]
         )
 
         return documents
@@ -79,9 +72,6 @@ class ChunkingService:
         for idx, chunk in enumerate(chunks):
 
             chunk.metadata["chunk_id"] = idx
-
-            chunk.metadata["source"] = (
-                f"Video {video_id} - Chunk {idx}"
-            )
+            chunk.metadata["source"] = f"Video {video_id} - Chunk {idx}"
 
         return chunks

@@ -1,66 +1,48 @@
 # backend/app/rag/nodes.py
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from langchain_openai import ChatOpenAI
-
 from app.core.config import settings
 from app.services.chroma_service import ChromaService
 
 
-# LLM
+# ---------------- LLM ----------------
 llm = ChatOpenAI(
-    model=settings.LLM_MODEL,
+    model=settings.llm_model,
     api_key=settings.OPENAI_API_KEY,
     temperature=0
 )
 
-# Vector Store
+# ---------------- VECTOR DB ----------------
 vector_store = ChromaService()
 
 
-def retrieve(
-    state: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Retrieve relevant chunks from ChromaDB.
-    """
+# =========================================================
+# 1. RETRIEVAL NODE
+# =========================================================
+def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
 
     question = state["question"]
 
-    documents = vector_store.similarity_search(
+    docs = vector_store.similarity_search(
         query=question,
-        k=5
+        k=6
     )
 
     context = []
     sources = []
 
-    for document in documents:
+    for doc in docs:
+        context.append(doc.page_content)
 
-        context.append(
-            document.page_content
-        )
-
-        sources.append(
-            {
-                "video_id": document.metadata.get(
-                    "video_id"
-                ),
-                "platform": document.metadata.get(
-                    "platform"
-                ),
-                "creator": document.metadata.get(
-                    "creator"
-                ),
-                "chunk_id": document.metadata.get(
-                    "chunk_id"
-                ),
-                "source": document.metadata.get(
-                    "source"
-                )
-            }
-        )
+        sources.append({
+            "video_id": doc.metadata.get("video_id"),
+            "platform": doc.metadata.get("platform"),
+            "creator": doc.metadata.get("creator"),
+            "chunk_id": doc.metadata.get("chunk_id"),
+            "source": doc.metadata.get("source")
+        })
 
     return {
         "question": question,
@@ -69,54 +51,85 @@ def retrieve(
     }
 
 
-def generate(
-    state: Dict[str, Any]
-) -> Dict[str, Any]:
-    """
-    Generate answer using retrieved context.
-    """
+# =========================================================
+# 2. ANALYSIS NODE (NEW - INTERVIEW CRITICAL)
+# =========================================================
+def analyze(state: Dict[str, Any]) -> Dict[str, Any]:
+
+    context = state["context"]
+
+    analysis_prompt = f"""
+You are a senior AI analyst.
+
+You are given chunks from TWO videos:
+- Video A (YouTube)
+- Video B (Instagram Reel)
+
+TASK:
+Analyze differences between Video A and Video B.
+
+Focus on:
+1. Hook quality (first 5 seconds)
+2. Engagement signals
+3. Content structure
+4. Creator strategy differences
+
+CONTEXT:
+{chr(10).join(context)}
+
+Return structured insights:
+- Key Differences
+- Why one performed better
+- Engagement insights
+"""
+
+    response = llm.invoke(analysis_prompt)
+
+    return {
+        **state,
+        "analysis": response.content
+    }
+
+
+# =========================================================
+# 3. GENERATION NODE
+# =========================================================
+def generate(state: Dict[str, Any]) -> Dict[str, Any]:
 
     question = state["question"]
-
-    context = "\n\n".join(
-        state["context"]
-    )
+    context = "\n\n".join(state["context"])
+    analysis = state.get("analysis", "")
 
     prompt = f"""
-You are an expert Creator Analytics Assistant.
+You are an expert CreatorIQ Analytics Assistant.
 
-You are comparing two social media videos:
+You compare video performance using real data.
 
-Video A = YouTube
-Video B = Instagram Reel
-
-Use ONLY the supplied context.
-
-=========================
-CONTEXT
-=========================
-
-{context}
-
-=========================
+========================
 QUESTION
-=========================
-
+========================
 {question}
 
-=========================
+========================
+RAW CONTEXT
+========================
+{context}
+
+========================
+PRE-ANALYSIS
+========================
+{analysis}
+
+========================
 RULES
-=========================
+========================
+- Always compare Video A vs Video B when relevant
+- Use ONLY provided data
+- No hallucination
+- Give actionable insights
+- Be structured and clear
 
-1. Use only the provided context.
-2. Never hallucinate information.
-3. Compare Video A and Video B when relevant.
-4. Mention engagement insights if available.
-5. Mention creator insights if available.
-6. Suggest actionable improvements when asked.
-7. If information is unavailable, clearly state it.
-
-Provide a clear and structured answer.
+FINAL ANSWER:
 """
 
     response = llm.invoke(prompt)
@@ -125,5 +138,6 @@ Provide a clear and structured answer.
         "question": question,
         "context": state["context"],
         "sources": state["sources"],
+        "analysis": analysis,
         "answer": response.content
     }

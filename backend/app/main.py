@@ -6,41 +6,36 @@ from app.api.ingest import router as ingest_router
 from app.api.chat import router as chat_router
 
 
-app = FastAPI(
-    title="CreatorIQ RAG API",
-    version="1.0.0"
-)
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="CreatorIQ RAG API",
+        version="1.0.0",
+        description="RAG system for video comparison and engagement analysis"
+    )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"]
-)
+    # CORS (frontend ready)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"]
+    )
 
-app.include_router(
-    health_router,
-    prefix="/health",
-    tags=["Health"]
-)
+    # Routers
+    app.include_router(health_router, prefix="/health", tags=["Health"])
+    app.include_router(ingest_router, prefix="/ingest", tags=["Ingest"])
+    app.include_router(chat_router, prefix="/chat", tags=["Chat"])
 
-app.include_router(
-    ingest_router,
-    prefix="/ingest",
-    tags=["Ingest"]
-)
+    @app.get("/")
+    async def root():
+        return {
+            "status": "running",
+            "service": "CreatorIQ RAG",
+            "architecture": "LangGraph + VectorDB + LLM"
+        }
 
-app.include_router(
-    chat_router,
-    prefix="/chat",
-    tags=["Chat"]
-)
+    return app
 
 
-@app.get("/")
-async def root():
-    return {
-        "status": "running",
-        "service": "CreatorIQ RAG"
-    }
+app = create_app()

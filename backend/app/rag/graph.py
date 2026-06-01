@@ -1,50 +1,25 @@
-from langgraph.graph import (
-    StateGraph,
-    END
-)
-
-from langgraph.checkpoint.memory import (
-    MemorySaver
-)
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 
 from app.rag.state import GraphState
-from app.rag.nodes import (
-    retrieve,
-    generate
-)
+from app.rag.nodes import retrieve, analyze, generate
 
 
 builder = StateGraph(GraphState)
 
-# Nodes
-builder.add_node(
-    "retrieve",
-    retrieve
-)
+# ---------------- NODES ----------------
+builder.add_node("retrieve", retrieve)
+builder.add_node("analyze", analyze)
+builder.add_node("generate", generate)
 
-builder.add_node(
-    "generate",
-    generate
-)
+# ---------------- FLOW ----------------
+builder.set_entry_point("retrieve")
 
-# Flow
-builder.set_entry_point(
-    "retrieve"
-)
+builder.add_edge("retrieve", "analyze")
+builder.add_edge("analyze", "generate")
+builder.add_edge("generate", END)
 
-builder.add_edge(
-    "retrieve",
-    "generate"
-)
-
-builder.add_edge(
-    "generate",
-    END
-)
-
-# Memory for multi-turn conversations
+# ---------------- MEMORY ----------------
 memory = MemorySaver()
 
-graph = builder.compile(
-    checkpointer=memory
-)
+graph = builder.compile(checkpointer=memory)

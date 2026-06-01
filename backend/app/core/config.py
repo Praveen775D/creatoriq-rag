@@ -2,16 +2,25 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    # ---------------- CORE ----------------
     OPENAI_API_KEY: str
 
-    CHROMA_COLLECTION: str = "creatoriq_videos"
+    # ---------------- LLM ----------------
+    llm_model: str = "gpt-4o-mini"
 
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
+    # ---------------- EMBEDDINGS ----------------
+    embedding_model: str = "text-embedding-3-small"
 
-    LLM_MODEL: str = "gpt-4o-mini"
+    # ---------------- CHROMA ----------------
+    chroma_persist_directory: str = "./chroma_db"
+    chroma_collection: str = "videos"
+
+    # ---------------- API ----------------
+    next_public_api_url: str = "http://localhost:8000"
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 settings = Settings()
