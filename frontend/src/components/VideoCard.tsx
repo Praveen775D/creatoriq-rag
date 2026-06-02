@@ -6,55 +6,64 @@ interface Props {
 
 export default function VideoCard({ video }: Props) {
   return (
-    <div className="border rounded-lg p-5 shadow-sm bg-white hover:shadow-md transition">
+    <div className="group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+      
+      {/* PLATFORM BADGE */}
+      <div className="absolute right-4 top-4">
+        <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+          {video.platform}
+        </span>
+      </div>
+
       {/* TITLE */}
-      <h2 className="font-bold text-lg mb-3">
+      <h2 className="mb-3 pr-16 text-lg font-bold leading-snug text-gray-900 group-hover:text-black">
         {video.title}
       </h2>
 
-      {/* CREATOR + PLATFORM */}
-      <div className="text-sm text-gray-700 mb-3">
-        <p>
-          <span className="font-medium">Creator:</span>{" "}
-          {video.creator}
-        </p>
+      {/* CREATOR */}
+      <p className="mb-4 text-sm text-gray-600">
+        <span className="font-medium text-gray-800">Creator:</span>{" "}
+        {video.creator}
+      </p>
 
-        <p>
-          <span className="font-medium">Platform:</span>{" "}
-          {video.platform}
-        </p>
-      </div>
+      {/* METRICS GRID */}
+      <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-gray-500">Views</p>
+          <p className="text-base font-semibold text-gray-900">
+            {(video.views ?? 0).toLocaleString()}
+          </p>
+        </div>
 
-      {/* METRICS */}
-      <div className="text-sm space-y-1">
-        <p>
-          <span className="font-medium">Views:</span>{" "}
-          {video.views ?? 0}
-        </p>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-gray-500">Likes</p>
+          <p className="text-base font-semibold text-gray-900">
+            {(video.likes ?? 0).toLocaleString()}
+          </p>
+        </div>
 
-        <p>
-          <span className="font-medium">Likes:</span>{" "}
-          {video.likes ?? 0}
-        </p>
+        <div className="rounded-lg bg-gray-50 p-3">
+          <p className="text-gray-500">Comments</p>
+          <p className="text-base font-semibold text-gray-900">
+            {(video.comments ?? 0).toLocaleString()}
+          </p>
+        </div>
 
-        <p>
-          <span className="font-medium">Comments:</span>{" "}
-          {video.comments ?? 0}
-        </p>
-
-        <p>
-          <span className="font-medium">Engagement:</span>{" "}
-          {video.engagement_rate?.toFixed(2) ?? 0}%
-        </p>
+        <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-3">
+          <p className="text-gray-500">Engagement</p>
+          <p className="text-base font-bold text-indigo-600">
+            {video.engagement_rate?.toFixed(2) ?? "0.00"}%
+          </p>
+        </div>
       </div>
 
       {/* HASHTAGS */}
       {video.hashtags?.length > 0 && (
-        <div className="mt-3 flex flex-wrap gap-1">
+        <div className="mt-4 flex flex-wrap gap-2">
           {video.hashtags.map((tag, idx) => (
             <span
               key={idx}
-              className="text-xs bg-gray-100 px-2 py-1 rounded"
+              className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 transition hover:bg-gray-200"
             >
               #{tag}
             </span>
