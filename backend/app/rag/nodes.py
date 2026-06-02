@@ -8,9 +8,9 @@ from app.core.config import settings
 from app.services.chroma_service import ChromaService
 
 
-# =========================================================
-# LLM (GROQ)
-# =========================================================
+
+# LLM
+
 
 llm = ChatGroq(
     groq_api_key=settings.GROQ_API_KEY,
@@ -18,16 +18,17 @@ llm = ChatGroq(
     temperature=0
 )
 
-# =========================================================
+
+
 # VECTOR STORE
-# =========================================================
+
 
 vector_store = ChromaService()
 
 
-# =========================================================
+
 # RETRIEVE
-# =========================================================
+
 
 def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
 
@@ -35,7 +36,7 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
 
     docs = vector_store.similarity_search(
         query=question,
-        k=6
+        k=8
     )
 
     context = []
@@ -60,38 +61,53 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# =========================================================
+
 # ANALYZE
-# =========================================================
+
 
 def analyze(state: Dict[str, Any]) -> Dict[str, Any]:
 
-    context = state["context"]
+    context = "\n\n".join(
+        state.get("context", [])
+    )
 
     analysis_prompt = f"""
-You are a senior creator analytics expert.
+You are a professional social media analyst.
 
-Analyze Video A and Video B.
+Use ONLY the information provided below.
 
-Focus on:
+CONTEXT:
 
-1. Hook quality
-2. Engagement signals
-3. Content structure
-4. Creator strategy
-5. Audience retention clues
+{context}
 
-Context:
+RULES:
 
-{chr(10).join(context)}
+1. Never invent metrics.
+2. Never estimate views, likes or engagement.
+3. If a value is missing say:
+   Data not available.
+4. Use exact numbers from context.
+5. Compare Video A and Video B only.
+
+Analyze:
+
+- Views
+- Likes
+- Comments
+- Engagement Rate
+- Creator
+- Hashtags
 
 Provide:
 
-- Key Differences
-- Strongest Video
-- Weakest Video
-- Engagement Insights
-- Improvement Suggestions
+1. Reach Comparison
+2. Engagement Comparison
+3. Strongest Video
+4. Weakest Video
+5. Creator Insights
+6. Improvement Suggestions
+
+Keep answers factual.
 """
 
     response = llm.invoke(analysis_prompt)
@@ -102,16 +118,16 @@ Provide:
     }
 
 
-# =========================================================
+
 # GENERATE
-# =========================================================
+
 
 def generate(state: Dict[str, Any]) -> Dict[str, Any]:
 
     question = state["question"]
 
     context = "\n\n".join(
-        state["context"]
+        state.get("context", [])
     )
 
     analysis = state.get(
@@ -122,33 +138,65 @@ def generate(state: Dict[str, Any]) -> Dict[str, Any]:
     prompt = f"""
 You are CreatorIQ AI.
 
-Question:
+QUESTION:
 
 {question}
 
-Context:
+RETRIEVED DATA:
 
 {context}
 
-Analysis:
+PREVIOUS ANALYSIS:
 
 {analysis}
 
-Rules:
+STRICT RULES:
 
-- Use only retrieved data
-- Compare Video A and Video B
-- Give actionable creator advice
-- Cite source videos when possible
-- Be concise but insightful
+1. Use ONLY retrieved data.
+
+2. Never generate numbers that are not present.
+
+3. Never estimate engagement rates.
+
+4. Never claim a video performed better unless the metrics prove it.
+
+5. If information is unavailable say:
+   Data not available.
+
+6. Compare:
+   - Views
+   - Likes
+   - Comments
+   - Engagement Rate
+   - Creator
+   - Hashtags
+
+7. Give actionable creator advice.
+
+8. Mention exact metrics whenever available.
+
+9. Keep responses concise and professional.
+
+10. If user asks:
+    "Which video is better?"
+
+    Decide using:
+    - Views
+    - Engagement Rate
+    - Likes
+    - Comments
+
+    Explain using actual values only.
+
+FINAL ANSWER:
 """
 
     response = llm.invoke(prompt)
 
     return {
         "question": question,
-        "context": state["context"],
-        "sources": state["sources"],
+        "context": state.get("context", []),
+        "sources": state.get("sources", []),
         "analysis": analysis,
         "answer": response.content
     }
