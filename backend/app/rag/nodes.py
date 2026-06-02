@@ -2,7 +2,7 @@
 
 from typing import Dict, Any
 
-from langchain_groq import ChatGroq
+from groq import Groq
 
 from app.core.config import settings
 from app.services.chroma_service import ChromaService
