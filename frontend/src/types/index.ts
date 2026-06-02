@@ -1,6 +1,6 @@
 export interface VideoMetadata {
   video_id: string;
-  platform: string;
+  platform: "youtube" | "instagram";
   title: string;
   creator: string;
   views: number;
@@ -11,12 +11,16 @@ export interface VideoMetadata {
   upload_date?: string;
   duration?: number;
   engagement_rate: number;
+  transcript?: string;
 }
 
 export interface Source {
   video_id: string;
   platform: string;
   creator: string;
-  chunk_id: number;
-  source: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  sources: Source[];
 }
