@@ -13,6 +13,6 @@ class VideoMetadata(BaseModel):
     followers: int | None = None
     hashtags: List[str] = []
     upload_date: str | None = None
-    duration: int | None = None
+    duration: float | None = None
     engagement_rate: float
     transcript: str

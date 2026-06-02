@@ -1,5 +1,4 @@
-# app/services/instagram_service.py
-
+# backend/app/services/instagram_service.py
 import re
 from typing import Dict, Any, List
 
@@ -10,64 +9,59 @@ from app.models.video import VideoMetadata
 
 
 class InstagramService:
-    """
-    Instagram Reel ingestion service.
-
-    Responsibilities:
-    - Extract reel shortcode
-    - Fetch metadata
-    - Compute engagement rate
-    - Normalize output into VideoMetadata
-    """
 
     SHORTCODE_PATTERN = r"instagram\.com/(?:reel|p)/([^/?]+)"
 
-    # -----------------------------
-    # Extract shortcode
-    # -----------------------------
     @classmethod
     def extract_shortcode(cls, url: str) -> str:
-        match = re.search(cls.SHORTCODE_PATTERN, url)
+
+        match = re.search(
+            cls.SHORTCODE_PATTERN,
+            url
+        )
 
         if not match:
-            raise ValueError(f"Invalid Instagram URL: {url}")
+            raise ValueError(
+                f"Invalid Instagram URL: {url}"
+            )
 
         return match.group(1)
 
-    # -----------------------------
-    # Fetch metadata
-    # -----------------------------
     @staticmethod
     def get_metadata(url: str) -> Dict[str, Any]:
 
         ydl_opts = {
             "quiet": True,
             "skip_download": True,
+            "noplaylist": True,
         }
 
-        try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                return ydl.extract_info(url, download=False)
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            return ydl.extract_info(
+                url,
+                download=False
+            )
 
-        except Exception as e:
-            logger.error(f"Instagram metadata fetch failed: {str(e)}")
-            raise
-
-    # -----------------------------
-    # Engagement calculator
-    # -----------------------------
     @staticmethod
-    def calculate_engagement(likes: int, comments: int, views: int) -> float:
-        if not views:
+    def calculate_engagement(
+        likes: int,
+        comments: int,
+        views: int
+    ) -> float:
+
+        if views <= 0:
             return 0.0
 
-        return round(((likes + comments) / views) * 100, 2)
+        return round(
+            ((likes + comments) / views) * 100,
+            2
+        )
 
-    # -----------------------------
-    # Hashtag extractor
-    # -----------------------------
     @staticmethod
-    def extract_hashtags(description: str) -> List[str]:
+    def extract_hashtags(
+        description: str
+    ) -> List[str]:
+
         if not description:
             return []
 
@@ -77,49 +71,80 @@ class InstagramService:
             if word.startswith("#")
         ]
 
-    # -----------------------------
-    # Main pipeline
-    # -----------------------------
-    def process_reel(self, url: str, video_label: str = "B") -> VideoMetadata:
+    def process_reel(
+        self,
+        url: str,
+        video_label: str = "B"
+    ) -> VideoMetadata:
 
-        logger.info(f"Processing Instagram reel: {url}")
-
-        shortcode = self.extract_shortcode(url)
-        metadata = self.get_metadata(url)
-
-        views = metadata.get("view_count", 0)
-        likes = metadata.get("like_count", 0)
-        comments = metadata.get("comment_count", 0)
-
-        engagement_rate = self.calculate_engagement(
-            likes=likes,
-            comments=comments,
-            views=views
+        logger.info(
+            f"Processing Instagram Reel {video_label}"
         )
 
-        description = metadata.get("description", "")
+        shortcode = self.extract_shortcode(url)
 
-        hashtags = self.extract_hashtags(description)
+        metadata = self.get_metadata(url)
+
+        logger.info(metadata)
+
+        views = int(
+            metadata.get("view_count")
+            or metadata.get("play_count")
+            or metadata.get("viewer_count")
+            or 0
+        )
+
+        likes = int(
+            metadata.get("like_count")
+            or 0
+        )
+
+        comments = int(
+            metadata.get("comment_count")
+            or 0
+        )
+
+        engagement_rate = self.calculate_engagement(
+            likes,
+            comments,
+            views
+        )
+
+        description = metadata.get(
+            "description",
+            ""
+        )
+
+        hashtags = self.extract_hashtags(
+            description
+        )
 
         creator = (
             metadata.get("uploader")
             or metadata.get("channel")
             or metadata.get("creator")
-            or ""
+            or metadata.get("uploader_id")
+            or "Unknown Creator"
         )
 
         return VideoMetadata(
             video_id=video_label,
             platform="instagram",
-            title=metadata.get("title", f"Instagram Reel {shortcode}"),
+            title=metadata.get(
+                "title",
+                f"Instagram Reel {shortcode}"
+            ),
             creator=creator,
             views=views,
             likes=likes,
             comments=comments,
-            followers=None,
+            followers=0,
             hashtags=hashtags,
             upload_date=metadata.get("upload_date"),
-            duration=metadata.get("duration"),
+            duration=int(
+                metadata.get("duration")
+                or 0
+            ),
             engagement_rate=engagement_rate,
             transcript=""
         )

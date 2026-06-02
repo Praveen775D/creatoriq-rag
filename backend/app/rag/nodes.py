@@ -1,26 +1,36 @@
+
 # backend/app/rag/nodes.py
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 
-from langchain_openai import ChatOpenAI
+from langchain_groq import ChatGroq
+
 from app.core.config import settings
 from app.services.chroma_service import ChromaService
 
 
-# ---------------- LLM ----------------
-llm = ChatOpenAI(
-    model=settings.llm_model,
-    api_key=settings.OPENAI_API_KEY,
+# =========================================================
+# LLM
+# =========================================================
+
+llm = ChatGroq(
+    groq_api_key=settings.GROQ_API_KEY,
+    model_name=settings.llm_model,
     temperature=0
 )
 
-# ---------------- VECTOR DB ----------------
+
+# =========================================================
+# VECTOR STORE
+# =========================================================
+
 vector_store = ChromaService()
 
 
 # =========================================================
-# 1. RETRIEVAL NODE
+# RETRIEVE
 # =========================================================
+
 def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
 
     question = state["question"]
@@ -34,6 +44,7 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
     sources = []
 
     for doc in docs:
+
         context.append(doc.page_content)
 
         sources.append({
@@ -52,38 +63,43 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # =========================================================
-# 2. ANALYSIS NODE (NEW - INTERVIEW CRITICAL)
+# ANALYZE
 # =========================================================
+
 def analyze(state: Dict[str, Any]) -> Dict[str, Any]:
 
-    context = state["context"]
+    context = "\n\n".join(
+        state["context"]
+    )
 
-    analysis_prompt = f"""
-You are a senior AI analyst.
+    prompt = f"""
+You are a CreatorIQ content analyst.
 
-You are given chunks from TWO videos:
-- Video A (YouTube)
-- Video B (Instagram Reel)
+Analyze ONLY the information present below.
 
-TASK:
-Analyze differences between Video A and Video B.
+Do NOT invent:
+- retention rates
+- hook scores
+- engagement percentages
+- performance metrics
 
-Focus on:
-1. Hook quality (first 5 seconds)
-2. Engagement signals
-3. Content structure
-4. Creator strategy differences
+If information is missing,
+say "Data not available".
 
-CONTEXT:
-{chr(10).join(context)}
+Context:
 
-Return structured insights:
-- Key Differences
-- Why one performed better
-- Engagement insights
+{context}
+
+Return:
+
+1. Platform Differences
+2. Engagement Signals
+3. Content Themes
+4. Creator Strategy
+5. Key Observations
 """
 
-    response = llm.invoke(analysis_prompt)
+    response = llm.invoke(prompt)
 
     return {
         **state,
@@ -92,44 +108,49 @@ Return structured insights:
 
 
 # =========================================================
-# 3. GENERATION NODE
+# GENERATE
 # =========================================================
+
 def generate(state: Dict[str, Any]) -> Dict[str, Any]:
 
     question = state["question"]
-    context = "\n\n".join(state["context"])
-    analysis = state.get("analysis", "")
+
+    context = "\n\n".join(
+        state["context"]
+    )
+
+    analysis = state.get(
+        "analysis",
+        ""
+    )
 
     prompt = f"""
-You are an expert CreatorIQ Analytics Assistant.
+You are CreatorIQ AI.
 
-You compare video performance using real data.
+Answer the user question using ONLY
+the retrieved context.
 
-========================
-QUESTION
-========================
+Question:
 {question}
 
-========================
-RAW CONTEXT
-========================
+Retrieved Context:
 {context}
 
-========================
-PRE-ANALYSIS
-========================
+Analysis:
 {analysis}
 
-========================
-RULES
-========================
-- Always compare Video A vs Video B when relevant
-- Use ONLY provided data
-- No hallucination
-- Give actionable insights
-- Be structured and clear
+Rules:
 
-FINAL ANSWER:
+- Never invent statistics
+- Never invent retention rates
+- Never invent hook scores
+- Never invent engagement rates
+- If data is missing, say so
+- Compare videos using actual metadata
+- Mention views, likes, comments, hashtags when available
+- Be concise and professional
+
+Answer:
 """
 
     response = llm.invoke(prompt)

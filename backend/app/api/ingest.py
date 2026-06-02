@@ -12,45 +12,62 @@ router = APIRouter()
 
 @router.post("/")
 async def ingest_videos(payload: VideoIngestRequest):
-
     try:
+        # Initialize services
         youtube_service = YouTubeService()
         instagram_service = InstagramService()
-        chunker = ChunkingService()
-        chroma = ChromaService()
+        chunking_service = ChunkingService()
+        chroma_service = ChromaService()
 
-        # ---------------- FETCH DATA ----------------
-        yt_video = youtube_service.process_video(payload.youtube_url, video_id="A")
-        ig_video = instagram_service.process_reel(payload.instagram_url, video_id="B")
+        # ==============================
+        # Process YouTube Video (A)
+        # ==============================
+        youtube_video = youtube_service.process_video(
+            url=payload.youtube_url,
+            video_label="A"
+        )
 
-        # ---------------- CHUNKING ----------------
-        yt_chunks = chunker.process_video(
-            transcript=yt_video.transcript,
+        # ==============================
+        # Process Instagram Reel (B)
+        # ==============================
+        instagram_video = instagram_service.process_reel(
+            url=payload.instagram_url,
+            video_label="B"
+        )
+
+        # ==============================
+        # Create Chunks
+        # ==============================
+        youtube_chunks = chunking_service.process_video(
+            transcript=youtube_video.transcript,
             video_id="A",
             platform="youtube",
-            creator=yt_video.creator
+            creator=youtube_video.creator,
         )
 
-        ig_chunks = chunker.process_video(
-            transcript=ig_video.transcript,
+        instagram_chunks = chunking_service.process_video(
+            transcript=instagram_video.transcript,
             video_id="B",
             platform="instagram",
-            creator=ig_video.creator
+            creator=instagram_video.creator,
         )
 
-        # ---------------- STORE ----------------
-        chroma.add_documents(yt_chunks)
-        chroma.add_documents(ig_chunks)
+        # ==============================
+        # Store Chunks in ChromaDB
+        # ==============================
+        chroma_service.add_documents(youtube_chunks)
+        chroma_service.add_documents(instagram_chunks)
 
+        # ==============================
+        # Response
+        # ==============================
         return {
             "status": "success",
             "message": "Videos ingested successfully",
-            "data": {
-                "video_a": yt_video.model_dump(),
-                "video_b": ig_video.model_dump(),
-                "chunks_a": len(yt_chunks),
-                "chunks_b": len(ig_chunks)
-            }
+            "video_a": youtube_video.model_dump(),
+            "video_b": instagram_video.model_dump(),
+            "chunks_a": len(youtube_chunks),
+            "chunks_b": len(instagram_chunks),
         }
 
     except Exception as e:
