@@ -1,75 +1,190 @@
 import { VideoMetadata } from "../types";
 
 interface Props {
-  video: VideoMetadata;
+video: VideoMetadata;
 }
 
 export default function VideoCard({ video }: Props) {
-  return (
-    <div className="group relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-      
-      {/* PLATFORM BADGE */}
-      <div className="absolute right-4 top-4">
-        <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+const formatNumber = (num?: number) => {
+if (!num) return "0";
+
+
+return Intl.NumberFormat("en-IN").format(num);
+
+
+};
+
+const engagement = Number(
+video.engagement_rate || 0
+).toFixed(2);
+
+const isYoutube =
+video.platform?.toLowerCase().includes("youtube");
+
+return ( <div
+   className="
+   group
+   relative
+   overflow-hidden
+   rounded-[32px]
+   border
+   border-white/10
+   bg-[#0B1220]
+   hover:border-cyan-500/30
+   transition-all
+   duration-500
+   "
+ >
+<div
+className={`         absolute
+        top-0
+        left-0
+        w-full
+        h-1
+        ${
+          isYoutube
+            ? "bg-gradient-to-r from-red-500 to-orange-500"
+            : "bg-gradient-to-r from-pink-500 to-violet-500"
+        }
+      `}
+/>
+
+
+  <div className="p-8">
+
+    <div className="flex items-start justify-between mb-6">
+
+      <div>
+
+        <div
+          className={`
+          inline-flex
+          px-3
+          py-1
+          rounded-full
+          text-xs
+          font-semibold
+          mb-4
+          ${
+            isYoutube
+              ? "bg-red-500/10 text-red-300"
+              : "bg-pink-500/10 text-pink-300"
+          }
+        `}
+        >
           {video.platform}
-        </span>
+        </div>
+
+        <h2 className="text-2xl font-bold leading-tight">
+          {video.title}
+        </h2>
+
       </div>
 
-      {/* TITLE */}
-      <h2 className="mb-3 pr-16 text-lg font-bold leading-snug text-gray-900 group-hover:text-black">
-        {video.title}
-      </h2>
+    </div>
 
-      {/* CREATOR */}
-      <p className="mb-4 text-sm text-gray-600">
-        <span className="font-medium text-gray-800">Creator:</span>{" "}
-        {video.creator}
+    <div className="mb-8">
+
+      <p className="text-slate-500 text-sm">
+        Creator
       </p>
 
-      {/* METRICS GRID */}
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div className="rounded-lg bg-gray-50 p-3">
-          <p className="text-gray-500">Views</p>
-          <p className="text-base font-semibold text-gray-900">
-            {(video.views ?? 0).toLocaleString()}
-          </p>
-        </div>
+      <h3 className="text-lg font-semibold mt-1">
+        {video.creator}
+      </h3>
 
-        <div className="rounded-lg bg-gray-50 p-3">
-          <p className="text-gray-500">Likes</p>
-          <p className="text-base font-semibold text-gray-900">
-            {(video.likes ?? 0).toLocaleString()}
-          </p>
-        </div>
+    </div>
 
-        <div className="rounded-lg bg-gray-50 p-3">
-          <p className="text-gray-500">Comments</p>
-          <p className="text-base font-semibold text-gray-900">
-            {(video.comments ?? 0).toLocaleString()}
-          </p>
-        </div>
+    <div className="grid grid-cols-2 gap-4">
 
-        <div className="rounded-lg bg-gradient-to-br from-indigo-50 to-purple-50 p-3">
-          <p className="text-gray-500">Engagement</p>
-          <p className="text-base font-bold text-indigo-600">
-            {video.engagement_rate?.toFixed(2) ?? "0.00"}%
-          </p>
-        </div>
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5">
+        <p className="text-slate-400 text-sm">
+          Views
+        </p>
+
+        <h4 className="text-3xl font-bold mt-2">
+          {formatNumber(video.views)}
+        </h4>
       </div>
 
-      {/* HASHTAGS */}
-      {video.hashtags?.length > 0 && (
-        <div className="mt-4 flex flex-wrap gap-2">
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5">
+        <p className="text-slate-400 text-sm">
+          Likes
+        </p>
+
+        <h4 className="text-3xl font-bold mt-2">
+          {formatNumber(video.likes)}
+        </h4>
+      </div>
+
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5">
+        <p className="text-slate-400 text-sm">
+          Comments
+        </p>
+
+        <h4 className="text-3xl font-bold mt-2">
+          {formatNumber(video.comments)}
+        </h4>
+      </div>
+
+      <div className="rounded-2xl bg-white/[0.03] border border-white/5 p-5">
+        <p className="text-slate-400 text-sm">
+          Engagement
+        </p>
+
+        <h4 className="text-3xl font-bold mt-2 text-cyan-400">
+          {engagement}%
+        </h4>
+      </div>
+
+    </div>
+
+    {video.followers && (
+      <div className="mt-5 rounded-2xl bg-gradient-to-r from-cyan-500/10 to-violet-500/10 border border-cyan-500/10 p-5">
+        <p className="text-slate-400 text-sm">
+          Followers
+        </p>
+
+        <h4 className="text-3xl font-bold mt-2">
+          {formatNumber(video.followers)}
+        </h4>
+      </div>
+    )}
+
+    {video.hashtags?.length > 0 && (
+      <div className="mt-6">
+
+        <p className="text-slate-500 text-sm mb-3">
+          Hashtags
+        </p>
+
+        <div className="flex flex-wrap gap-2">
+
           {video.hashtags.map((tag, idx) => (
             <span
               key={idx}
-              className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-700 transition hover:bg-gray-200"
+              className="
+              px-3
+              py-1
+              rounded-full
+              bg-white/[0.03]
+              border
+              border-white/10
+              text-sm
+              "
             >
               #{tag}
             </span>
           ))}
+
         </div>
-      )}
-    </div>
-  );
+
+      </div>
+    )}
+
+  </div>
+</div>
+
+
+);
 }
