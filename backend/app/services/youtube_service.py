@@ -1,5 +1,6 @@
+# backend/app/services/youtube_service.py
 import re
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
 import yt_dlp
 from loguru import logger
@@ -17,124 +18,352 @@ class YouTubeService:
         r"(?:shorts/)([A-Za-z0-9_-]{11})",
     ]
 
-    # -------------------------------------------------
-    # SAFE INT (CRITICAL FIX)
-    # -------------------------------------------------
+    
+    # SAFE INTEGER
+    
     @staticmethod
     def safe_int(value: Any) -> int:
         try:
             if value is None:
                 return 0
+
             if isinstance(value, str):
                 value = value.replace(",", "").strip()
+
             return int(float(value))
-        except:
+
+        except Exception:
             return 0
 
-    # -------------------------------------------------
-    # VIDEO ID EXTRACTION
-    # -------------------------------------------------
+    
+    # VIDEO ID
+    
     @classmethod
     def extract_video_id(cls, url: str) -> str:
+
         for pattern in cls.VIDEO_ID_PATTERNS:
             match = re.search(pattern, url)
+
             if match:
                 return match.group(1)
+
         raise ValueError("Invalid YouTube URL")
 
-    # -------------------------------------------------
-    # METADATA FETCH
-    # -------------------------------------------------
+    
+    # METADATA
+    
     @staticmethod
     def get_metadata(url: str) -> Dict[str, Any]:
+
+        options = {
+            "quiet": True,
+            "skip_download": True,
+            "noplaylist": True,
+            "extract_flat": False,
+
+            "extractor_args": {
+                "youtube": {
+                    "player_client": [
+                        "android",
+                        "web"
+                    ]
+                }
+            }
+        }
+
         try:
-            with yt_dlp.YoutubeDL({
-                "quiet": True,
-                "skip_download": True,
-                "noplaylist": True,
-            }) as ydl:
-                return ydl.extract_info(url, download=False)
+            with yt_dlp.YoutubeDL(options) as ydl:
+
+                info = ydl.extract_info(
+                    url,
+                    download=False
+                )
+
+                if isinstance(info, dict):
+                    return info
+
+                return {}
+
         except Exception as e:
-            logger.error(f"YouTube metadata error: {e}")
+
+            logger.error(
+                f"YouTube metadata error: {e}"
+            )
+
             return {}
 
-    # -------------------------------------------------
+    
     # TRANSCRIPT
-    # -------------------------------------------------
+    
     @staticmethod
     def get_transcript(video_id: str) -> str:
+
         try:
-            data = YouTubeTranscriptApi.get_transcript(video_id)
-            return " ".join(x.get("text", "") for x in data)
+            api = YouTubeTranscriptApi()
+
+            transcript = api.fetch(video_id)
+
+            text = " ".join(
+                item.text
+                for item in transcript
+            )
+
+            return text[:5000]
+
         except Exception as e:
-            logger.warning(f"No transcript for {video_id}: {e}")
+
+            logger.warning(
+                f"Transcript unavailable "
+                f"for {video_id}: {e}"
+            )
+
             return ""
 
-    # -------------------------------------------------
-    # ENGAGEMENT FORMULA
-    # -------------------------------------------------
+    
+    # ENGAGEMENT
+    
     @staticmethod
-    def calculate_engagement(likes: int, comments: int, views: int) -> float:
-        if not views or views <= 0:
+    def calculate_engagement(
+        likes: int,
+        comments: int,
+        views: int
+    ) -> float:
+
+        if views <= 0:
             return 0.0
-        return round(((likes + comments) / views) * 100, 2)
 
-    # -------------------------------------------------
+        return round(
+            ((likes + comments) / views) * 100,
+            2
+        )
+
+    
     # HASHTAGS
-    # -------------------------------------------------
+    
     @staticmethod
-    def extract_hashtags(text: str) -> List[str]:
-        if not text:
+    def extract_hashtags(
+        description: str
+    ) -> List[str]:
+
+        if not description:
             return []
-        return [w for w in text.split() if w.startswith("#")]
 
-    # -------------------------------------------------
-    # MAIN PROCESSOR (PRO FIXED)
-    # -------------------------------------------------
-    def process_video(self, url: str, video_label: str = "A"):
+        return re.findall(
+            r"#(\w+)",
+            description
+        )
 
-        logger.info(f"Processing YouTube Video {video_label}")
+    
+    # PERFORMANCE SCORE
+    
+    @staticmethod
+    def calculate_score(
+        engagement_rate: float,
+        views: int,
+        likes: int,
+        comments: int
+    ) -> float:
+
+        ratio = (
+            likes + comments
+        ) / max(views, 1)
+
+        score = (
+            engagement_rate * 0.5
+            + ratio * 100 * 0.3
+            + min(views / 50000, 20)
+        )
+
+        return round(score, 2)
+
+    
+    # MAIN PROCESSOR
+    
+    def process_video(
+        self,
+        url: str,
+        video_label: str = "A"
+    ):
+
+        logger.info(
+            f"Processing YouTube Video {video_label}"
+        )
 
         video_id = self.extract_video_id(url)
+
         metadata = self.get_metadata(url)
-        transcript = self.get_transcript(video_id)
 
-        # ---------------- SAFE EXTRACTION ----------------
-        views = self.safe_int(metadata.get("view_count"))
-        likes = self.safe_int(metadata.get("like_count"))
-        comments = self.safe_int(metadata.get("comment_count"))
+        transcript = self.get_transcript(
+            video_id
+        )
 
-        # ---------------- STRONG FALLBACK (IMPORTANT) ----------------
-        # prevents divide-by-zero + missing yt-dlp data
+        
+        # METRICS
+        
+
+        views = self.safe_int(
+            metadata.get("view_count")
+        )
+
+        likes = self.safe_int(
+            metadata.get("like_count")
+        )
+
+        comments = self.safe_int(
+            metadata.get("comment_count")
+        )
+
+        followers = self.safe_int(
+            metadata.get(
+                "channel_follower_count"
+            )
+        )
+
+        
+        # FALLBACK VIEWS
+        
+
         if views <= 0:
-            views = max(likes * 10, comments * 25, 1)
 
-        # ---------------- ENGAGEMENT ----------------
-        engagement_rate = self.calculate_engagement(likes, comments, views)
+            estimated_views = max(
+                likes * 15,
+                comments * 40,
+                100
+            )
 
-        # ---------------- HASHTAGS ----------------
-        description = metadata.get("description", "")
-        hashtags = self.extract_hashtags(description)
+            views = estimated_views
 
-        # ---------------- FINAL RESPONSE ----------------
+        
+        # ENGAGEMENT
+        
+
+        engagement_rate = (
+            self.calculate_engagement(
+                likes,
+                comments,
+                views
+            )
+        )
+
+        
+        # CONTENT
+        
+
+        hashtags = self.extract_hashtags(
+            metadata.get(
+                "description",
+                ""
+            )
+        )
+
+        
+        # SCORE
+        
+
+        performance_score = (
+            self.calculate_score(
+                engagement_rate,
+                views,
+                likes,
+                comments
+            )
+        )
+
+        
+        # BADGE
+        
+
+        if engagement_rate >= 10:
+            badge = "🔥 Viral"
+
+        elif engagement_rate >= 5:
+            badge = "⚡ High"
+
+        elif engagement_rate >= 2:
+            badge = "📊 Medium"
+
+        else:
+            badge = "📉 Low"
+
+        
+        # INSIGHT
+        
+
+        if engagement_rate >= 10:
+
+            insight = (
+                "Excellent engagement. "
+                "Strong viral potential."
+            )
+
+        elif engagement_rate >= 5:
+
+            insight = (
+                "Good audience interaction."
+            )
+
+        else:
+
+            insight = (
+                "Needs stronger hook and "
+                "better audience retention."
+            )
+
+        
+        # BASIC INFO
+        
+
+        title = (
+            metadata.get("title")
+            or "Untitled Video"
+        )
+
+        creator = (
+            metadata.get("channel")
+            or metadata.get("uploader")
+            or "Unknown Creator"
+        )
+
+        duration = self.safe_int(
+            metadata.get("duration")
+        )
+
+        
+        # RETURN MODEL
+        
+
         return VideoMetadata(
+
             video_id=video_label,
             platform="youtube",
-            title=metadata.get("title", "Untitled Video"),
-            creator=metadata.get("channel", "Unknown Creator"),
 
-            views=int(views),
-            likes=int(likes),
-            comments=int(comments),
+            title=title,
+            creator=creator,
 
-            followers=self.safe_int(metadata.get("channel_follower_count")),
+            views=views,
+            likes=likes,
+            comments=comments,
+
+            followers=followers,
 
             hashtags=hashtags,
-            upload_date=metadata.get("upload_date"),
-            duration=self.safe_int(metadata.get("duration")),
 
-            # 🔥 GUARANTEED SAFE VALUE (NO NaN EVER)
-            engagement_rate=float(engagement_rate or 0.0),
+            upload_date=metadata.get(
+                "upload_date"
+            ),
 
-            transcript=transcript
+            duration=duration,
+
+            transcript=transcript,
+
+            engagement_rate=engagement_rate,
+
+            formatted_views=f"{views:,}",
+            formatted_likes=f"{likes:,}",
+            formatted_comments=f"{comments:,}",
+            formatted_engagement=f"{engagement_rate:.2f}%",
+
+            performance_score=performance_score,
+            performance_badge=badge,
+            quick_insight=insight,
         )

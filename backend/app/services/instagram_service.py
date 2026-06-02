@@ -1,5 +1,6 @@
+# backend/app/services/instagram_service.py
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 import yt_dlp
 from loguru import logger
@@ -9,11 +10,9 @@ from app.models.video import VideoMetadata
 
 class InstagramService:
 
-    SHORTCODE_PATTERN = r"instagram\.com/(?:reel|p)/([^/?]+)"
-
-    # -------------------------------------------------
-    # SAFE INT (ROBUST FOR ALL EDGE CASES)
-    # -------------------------------------------------
+   
+    # SAFE INTEGER CONVERSION
+   
     @staticmethod
     def safe_int(value: Any) -> int:
         try:
@@ -24,71 +23,122 @@ class InstagramService:
                 value = value.replace(",", "").strip()
 
             return int(float(value))
-        except:
+        except Exception:
             return 0
 
-    # -------------------------------------------------
-    # SHORTCODE
-    # -------------------------------------------------
-    @classmethod
-    def extract_shortcode(cls, url: str) -> str:
-        match = re.search(cls.SHORTCODE_PATTERN, url)
-        if not match:
-            raise ValueError("Invalid Instagram URL")
-        return match.group(1)
-
-    # -------------------------------------------------
-    # METADATA FETCH
-    # -------------------------------------------------
+   
+    # FETCH INSTAGRAM METADATA
+   
     @staticmethod
     def get_metadata(url: str) -> Dict[str, Any]:
         try:
-            with yt_dlp.YoutubeDL({
+            ydl_opts = {
                 "quiet": True,
                 "skip_download": True,
                 "noplaylist": True,
-            }) as ydl:
-                return ydl.extract_info(url, download=False)
+                "extract_flat": False,
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+
+            return info if isinstance(info, dict) else {}
+
         except Exception as e:
             logger.error(f"Instagram metadata error: {e}")
             return {}
 
-    # -------------------------------------------------
-    # ENGAGEMENT FORMULA
-    # -------------------------------------------------
+   
+    # ENGAGEMENT RATE
+   
     @staticmethod
-    def calculate_engagement(likes: int, comments: int, views: int) -> float:
-        if not views or views <= 0:
+    def calculate_engagement(
+        likes: int,
+        comments: int,
+        views: int,
+    ) -> float:
+
+        if views <= 0:
             return 0.0
 
-        return round(((likes + comments) / views) * 100, 2)
+        return round(
+            ((likes + comments) / views) * 100,
+            2
+        )
 
-    # -------------------------------------------------
+   
     # HASHTAGS
-    # -------------------------------------------------
+   
     @staticmethod
-    def extract_hashtags(text: str) -> List[str]:
+    def extract_hashtags(
+        text: Optional[str]
+    ) -> List[str]:
+
         if not text:
             return []
-        return [w for w in text.split() if w.startswith("#")]
 
-    # -------------------------------------------------
-    # MAIN PROCESSOR
-    # -------------------------------------------------
-    def process_reel(self, url: str, video_label: str = "B"):
+        hashtags = re.findall(
+            r"#(\w+)",
+            text
+        )
 
-        logger.info(f"Processing Instagram Reel {video_label}")
+        return hashtags
 
-        shortcode = self.extract_shortcode(url)
+   
+    # CREATOR NAME
+   
+    @staticmethod
+    def extract_creator(
+        metadata: Dict[str, Any]
+    ) -> str:
+
+        return (
+            metadata.get("uploader")
+            or metadata.get("creator")
+            or metadata.get("channel")
+            or metadata.get("uploader_id")
+            or "Unknown Creator"
+        )
+
+   
+    # PROCESS REEL
+   
+    def process_reel(
+        self,
+        url: str,
+        video_label: str = "B",
+    ):
+
+        logger.info(
+            f"Processing Instagram Reel {video_label}"
+        )
+
         metadata = self.get_metadata(url)
 
-        # -----------------------------
-        # MULTI-SOURCE EXTRACTION
-        # -----------------------------
+        # FALLBACK IF yt-dlp RETURNS NOTHING
+        
+        if not metadata:
+
+            return VideoMetadata(
+                video_id=video_label,
+                platform="instagram",
+                title="Instagram Reel",
+                creator="Unknown Creator",
+                views=0,
+                likes=0,
+                comments=0,
+                followers=0,
+                hashtags=[],
+                upload_date=None,
+                duration=0,
+                engagement_rate=0.0,
+                transcript="",
+            )
+
+        # METRICS
         likes = self.safe_int(
             metadata.get("like_count")
             or metadata.get("likes")
-            or metadata.get("edge_media_preview_like")
         )
 
         comments = self.safe_int(
@@ -103,55 +153,62 @@ class InstagramService:
             or metadata.get("video_view_count")
         )
 
-        # -----------------------------
-        # STRONG FALLBACK (IMPORTANT FIX)
-        # -----------------------------
+        # FALLBACK VIEWS
         if views <= 0:
-            # safer estimation (prevents fake spikes)
-            views = max(likes * 12, comments * 30, 1)
+            views = (
+                likes * 12
+            ) + (
+                comments * 25
+            )
 
-        # -----------------------------
-        # ENGAGEMENT (ALWAYS SAFE)
-        # -----------------------------
-        engagement = self.calculate_engagement(likes, comments, views)
-
-        # -----------------------------
-        # CREATOR
-        # -----------------------------
-        creator = (
-            metadata.get("uploader")
-            or metadata.get("creator")
-            or metadata.get("channel")
-            or "Unknown Creator"
+        engagement_rate = (
+            self.calculate_engagement(
+                likes,
+                comments,
+                views,
+            )
         )
 
-        # -----------------------------
-        # HASHTAGS
-        # -----------------------------
-        description = metadata.get("description", "")
-        hashtags = self.extract_hashtags(description)
+        creator = self.extract_creator(
+            metadata
+        )
 
-        # -----------------------------
-        # FINAL SAFE OUTPUT
-        # -----------------------------
+        hashtags = self.extract_hashtags(
+            metadata.get(
+                "description",
+                ""
+            )
+        )
+
         return VideoMetadata(
             video_id=video_label,
             platform="instagram",
-            title=metadata.get("title", f"Instagram Reel {shortcode}"),
+            title=metadata.get(
+                "title",
+                "Instagram Reel",
+            ),
             creator=creator,
 
-            views=int(views),
-            likes=int(likes),
-            comments=int(comments),
+            views=views,
+            likes=likes,
+            comments=comments,
 
             followers=0,
+
             hashtags=hashtags,
 
-            upload_date=metadata.get("upload_date"),
-            duration=self.safe_int(metadata.get("duration")),
+            upload_date=metadata.get(
+                "upload_date"
+            ),
 
-            # 🔥 GUARANTEED NEVER NaN
-            engagement_rate=float(engagement or 0.0),
+            duration=self.safe_int(
+                metadata.get(
+                    "duration"
+                )
+            ),
 
-            transcript=""
+            engagement_rate=engagement_rate,
+
+            transcript="",
         )
+
