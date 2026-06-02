@@ -1,3 +1,4 @@
+// frontend/src/components/VideoCard.tsx
 import { VideoMetadata } from "@/types";
 
 interface Props {

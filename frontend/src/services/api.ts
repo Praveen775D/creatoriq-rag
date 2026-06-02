@@ -1,5 +1,3 @@
-import process from "process";
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:8000";
@@ -15,23 +13,23 @@ export interface ChatResponse {
   sources: Source[];
 }
 
+/**
+ * INGEST VIDEOS
+ */
 export async function ingestVideos(
   youtubeUrl: string,
   instagramUrl: string
 ) {
-  const response = await fetch(
-    `${API_BASE_URL}/ingest`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        youtube_url: youtubeUrl,
-        instagram_url: instagramUrl,
-      }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/ingest`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      youtube_url: youtubeUrl,
+      instagram_url: instagramUrl,
+    }),
+  });
 
   if (!response.ok) {
     throw new Error("Video ingestion failed");
@@ -40,23 +38,23 @@ export async function ingestVideos(
   return response.json();
 }
 
+/**
+ * CHAT WITH RAG
+ */
 export async function askQuestion(
   question: string,
-  sessionId: string = "default-session"
+  threadId: string = "default"
 ): Promise<ChatResponse> {
-  const response = await fetch(
-    `${API_BASE_URL}/chat`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        question,
-        session_id: sessionId,
-      }),
-    }
-  );
+  const response = await fetch(`${API_BASE_URL}/chat`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      question,
+      thread_id: threadId,
+    }),
+  });
 
   if (!response.ok) {
     throw new Error("Chat request failed");
@@ -65,10 +63,10 @@ export async function askQuestion(
   return response.json();
 }
 
+/**
+ * HEALTH CHECK
+ */
 export async function healthCheck() {
-  const response = await fetch(
-    `${API_BASE_URL}/health`
-  );
-
+  const response = await fetch(`${API_BASE_URL}/health`);
   return response.json();
 }

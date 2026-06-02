@@ -1,3 +1,4 @@
+// frontend/src/components/page.tsx
 import IngestForm
 from "@/components/IngestForm";
 

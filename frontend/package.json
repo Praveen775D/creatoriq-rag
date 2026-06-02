@@ -1,1 +1,1 @@
-{ "name":"creatoriq-rag-frontend" }
+{"name":"creatoriq-rag-frontend","devDependencies":{"@types/node":"^25.9.1"}}

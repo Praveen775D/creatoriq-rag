@@ -1,3 +1,4 @@
+// frontend/src/components/SourceCitation.tsx
 import { Source } from "@/types";
 
 interface Props {
