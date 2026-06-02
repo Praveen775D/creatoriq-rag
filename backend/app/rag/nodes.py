@@ -1,4 +1,3 @@
-
 # backend/app/rag/nodes.py
 
 from typing import Dict, Any
@@ -10,7 +9,7 @@ from app.services.chroma_service import ChromaService
 
 
 # =========================================================
-# LLM
+# LLM (GROQ)
 # =========================================================
 
 llm = ChatGroq(
@@ -18,7 +17,6 @@ llm = ChatGroq(
     model_name=settings.llm_model,
     temperature=0
 )
-
 
 # =========================================================
 # VECTOR STORE
@@ -68,38 +66,35 @@ def retrieve(state: Dict[str, Any]) -> Dict[str, Any]:
 
 def analyze(state: Dict[str, Any]) -> Dict[str, Any]:
 
-    context = "\n\n".join(
-        state["context"]
-    )
+    context = state["context"]
 
-    prompt = f"""
-You are a CreatorIQ content analyst.
+    analysis_prompt = f"""
+You are a senior creator analytics expert.
 
-Analyze ONLY the information present below.
+Analyze Video A and Video B.
 
-Do NOT invent:
-- retention rates
-- hook scores
-- engagement percentages
-- performance metrics
+Focus on:
 
-If information is missing,
-say "Data not available".
+1. Hook quality
+2. Engagement signals
+3. Content structure
+4. Creator strategy
+5. Audience retention clues
 
 Context:
 
-{context}
+{chr(10).join(context)}
 
-Return:
+Provide:
 
-1. Platform Differences
-2. Engagement Signals
-3. Content Themes
-4. Creator Strategy
-5. Key Observations
+- Key Differences
+- Strongest Video
+- Weakest Video
+- Engagement Insights
+- Improvement Suggestions
 """
 
-    response = llm.invoke(prompt)
+    response = llm.invoke(analysis_prompt)
 
     return {
         **state,
@@ -127,30 +122,25 @@ def generate(state: Dict[str, Any]) -> Dict[str, Any]:
     prompt = f"""
 You are CreatorIQ AI.
 
-Answer the user question using ONLY
-the retrieved context.
-
 Question:
+
 {question}
 
-Retrieved Context:
+Context:
+
 {context}
 
 Analysis:
+
 {analysis}
 
 Rules:
 
-- Never invent statistics
-- Never invent retention rates
-- Never invent hook scores
-- Never invent engagement rates
-- If data is missing, say so
-- Compare videos using actual metadata
-- Mention views, likes, comments, hashtags when available
-- Be concise and professional
-
-Answer:
+- Use only retrieved data
+- Compare Video A and Video B
+- Give actionable creator advice
+- Cite source videos when possible
+- Be concise but insightful
 """
 
     response = llm.invoke(prompt)
